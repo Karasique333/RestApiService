@@ -1,0 +1,99 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>To-Do List</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        input, button {
+            padding: 5px;
+            margin: 5px;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        .done {
+            text-decoration: line-through;
+            color: gray;
+        }
+    </style>
+</head>
+<body>
+    <h1>Список задач</h1>
+
+    <input type="text" id="titleInput" placeholder="Новая задача" />
+    <button onclick="addTask()">Добавить</button>
+
+    <ul id="taskList"></ul>
+
+    <script>
+        async function loadTasks() {
+            const res = await fetch('/api/TaskItems');
+            const tasks = await res.json();
+            const list = document.getElementById('taskList');
+            list.innerHTML = '';
+
+            tasks.forEach(task => {
+                const li = document.createElement('li');
+                li.className = task.isCompleted ? 'done' : '';
+                li.innerHTML = `
+              ${task.title}
+              <button onclick="toggleDone(${task.id}, ${task.isCompleted})">
+                ${task.isCompleted ? '↺' : '✓'}
+              </button>
+              <button onclick="deleteTask(${task.id})">🗑</button>
+            `;
+                list.appendChild(li);
+            });
+        }
+
+        async function addTask() {
+            const title = document.getElementById('titleInput').value;
+            if (!title.trim()) return;
+
+            await fetch('/api/TaskItems', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, isCompleted: false, Description: "desc" })
+            });
+
+            document.getElementById('titleInput').value = '';
+            await loadTasks();
+        }
+
+        async function deleteTask(id) {
+            await fetch(`/api/TaskItems/${id}`, { method: 'DELETE' });
+            await loadTasks();
+        }
+
+        async function toggleDone(id, isCompleted) {
+            const res = await fetch(`/api/TaskItems/${id}`);
+            const task = await res.json();
+
+            task.isCompleted = !isCompleted;
+            task.completedAt = task.isCompleted ? new Date().toISOString() : null;
+
+            await fetch(`/api/TaskItems/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(task)
+            });
+
+            await loadTasks();
+        }
+
+        loadTasks();
+    </script>
+</body>
+</html>
